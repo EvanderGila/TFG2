@@ -1,0 +1,4 @@
+Los modelos alojados en esta carpeta model, corresponden a los siguientes:
+
+model3C.pth = Model1_3C_3_NO.pth
+model4C.pth = Model1_4C_2_DA.pth
