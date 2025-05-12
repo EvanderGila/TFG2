@@ -1,2 +1,4 @@
 PruebaStreamlit.ipynb
 .ipynb_checkpoints/
+venv/
+.venv/

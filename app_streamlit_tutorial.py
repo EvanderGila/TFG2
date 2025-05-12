@@ -1,3 +1,5 @@
+"""Este archivo contiene ejemplos para aprender a usar Streamlit."""
+
 import streamlit as st
 import time
 import numpy as np
@@ -34,7 +36,8 @@ if mostrar:
 
 # 🧠 4. Selectbox y lógica condicional
 st.header("4️⃣ Selectbox")
-opcion = st.selectbox("Elige un modelo de ejemplo", ["Modelo A", "Modelo B", "Modelo C"])
+opcion = st.selectbox("Elige un modelo de ejemplo", [
+                      "Modelo A", "Modelo B", "Modelo C"])
 st.write(f"Has elegido: {opcion}")
 
 # 📈 5. Gráficos dinámicos
@@ -46,7 +49,8 @@ st.line_chart(datos)
 
 st.subheader("🗺 Mapa aleatorio")
 mapa = pd.DataFrame(
-    np.random.randn(100, 2) / [50, 50] + [40.4168, -3.7038],  # Madrid como centro
+    np.random.randn(100, 2) / [50, 50] +
+    [40.4168, -3.7038],  # Madrid como centro
     columns=['lat', 'lon'])
 st.map(mapa)
 
@@ -86,6 +90,6 @@ with st.expander("💡 ¿Qué es Streamlit?"):
         Ideal para dashboards de datos, prototipos de ML o aplicaciones interactivas.
     """)
 
-#Fin
+# Fin
 st.markdown("---")
 st.write("Fin del tutorial")
