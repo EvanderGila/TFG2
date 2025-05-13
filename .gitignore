@@ -2,3 +2,5 @@ PruebaStreamlit.ipynb
 .ipynb_checkpoints/
 venv/
 .venv/
+src/__init__.py
+src/__pycache__/

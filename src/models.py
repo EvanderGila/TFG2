@@ -1,11 +1,10 @@
-import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 
 class CNN_3C(nn.Module):
    
-    def __init__(self):
+    def __init__(self, out_1, out_2, out_3, image_size):
         super(CNN_3C, self).__init__()
         
         self.out_1 = 64  #Salida 1, normalización y entrada 2
@@ -50,7 +49,7 @@ class CNN_3C(nn.Module):
 
 class CNN_4C(nn.Module):
    
-    def __init__(self,out_1, out_2, out_3, out_4, image_size):
+    def __init__(self, out_1, out_2, out_3, out_4, image_size):
         super(CNN_4C, self).__init__()
         
         
