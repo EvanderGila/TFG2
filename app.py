@@ -4,6 +4,9 @@ import torch
 from torchvision import transforms
 from PIL import Image
 from src.models import CNN_3C, CNN_4C
+from torchcam.methods import GradCAM
+from torchcam.utils import overlay_mask
+from torchvision.transforms.functional import to_pil_image
 
 # Configurar que siempre se expanda por defecto para evitar confusiones
 st.set_page_config(layout="wide", initial_sidebar_state="expanded")
@@ -43,12 +46,27 @@ def load_model(model_choice):
 #Carga de modelo
 model = load_model(model_choice)
 
+# Limpiar los hooks 
+def clear_gradcam_hooks(model):
+    for module in model.modules():
+        if hasattr(module, 'registered_hooks'):
+            for hook in module.registered_hooks:
+                hook.remove()
+
 # Preprocesamiento de la imagen (definición de función)
 preprocess = transforms.Compose([
     transforms.Resize((64, 64)),  # Tamaño del modelo
     transforms.ToTensor(),       
     transforms.Normalize(mean=[0.4718, 0.4628, 0.4176], std=[0.2361, 0.2360, 0.2636])  # Media y desviación típica del dataset de entrenamiento
 ])
+
+# Inicializamos Grad-CAM
+if model_choice == "CNN_3C":
+    target_layer = "conv3"  # Última capa convolucional del modelo 3C
+else:
+    target_layer = "conv4"  # Última capa convolucional del modelo 4C
+
+heat_map = None
 
 #Creamos columnas para mayor organización visual
 col1, col2 = st.columns([0.60, 0.40]) # Crea dos columnas
@@ -67,20 +85,40 @@ with col1:
         # Preprocesar la imagen
         input_tensor = preprocess(image).unsqueeze(0)  # Como el tensor tiene forma [C, H, W] y Pytorch espera [Batch_size, C, H, W] se añade una dimensión: [1, C, H, W]
 
-        # Evaluación de la imagen
-        with torch.no_grad():
-            
-            # Pasamos la imagen al modelo
-            output = model(input_tensor)
-            # Traducimos la salida a probabilidad mediante sigmoid (clasificación binaria)
-            probability = torch.sigmoid(output).item()
 
-            if probability >= 0.5:
-                prediction = "Esta imagen es **real**"
-                confidence = probability * 100 # Usamos la propia probabilidad del modelo (1 = Real)
-            else:
-                prediction = "Esta imagen está **generada sintéticamente (FAKE)**"
-                confidence = (1 - probability) * 100 # Invertimos la probabilidad del modelo (0 = Fake)
+        # Evaluación de la imagen 
+        # Inicializar el extractor
+        cam_extractor = GradCAM(model, target_layer=target_layer)
+          
+        # Pasamos la imagen al modelo
+        output = model(input_tensor)
+        # Traducimos la salida a probabilidad mediante sigmoid (clasificación binaria)
+        probability = torch.sigmoid(output).item()
+
+        # Elección de la clase predicha
+        predicted_class = 1 if probability >= 0.5 else 0
+
+        # Extracción del mapa  (Se produce "IndexError: index 1 is out of bounds for dimension 1 with size 1" en la función cam_extractor con las clases positivas, reales) 
+        class_to_explain = predicted_class
+        if predicted_class == 1:
+            class_to_explain = 0
+        activation_map = cam_extractor(class_to_explain, output)
+        #activation_map = cam_extractor(predicted_class, output)
+
+        # Limpiar hooks para permitir cambio de imágenes en la misma sesión
+        clear_gradcam_hooks(model)
+        
+        #Convertir la imagen original y la máscara PIL y superponer
+        resized_img = transforms.Resize((64, 64))(image)
+        heat_map = overlay_mask(resized_img, to_pil_image(activation_map[0].detach(), mode='F'), alpha=0.5)
+
+        # Clasificación de la imagen y confianza
+        if probability >= 0.5:
+            prediction = "Esta imagen es **real**"
+            confidence = probability * 100 # Usamos la propia probabilidad del modelo (1 = Real)
+        else:
+            prediction = "Esta imagen está **generada sintéticamente (FAKE)**"
+            confidence = (1 - probability) * 100 # Invertimos la probabilidad del modelo (0 = Fake)
 
 with col2:
     st.markdown("<br><br><br><br><br><br><br>", unsafe_allow_html=True)
@@ -90,6 +128,9 @@ with col2:
             st.success(f"✅ {prediction} con una confianza del `{confidence:.4f}%`")
         else:
             st.error(f"⚠️ {prediction} con una confianza del `{confidence:.4f}%`")
+    if heat_map is not None:
+        st.markdown("### Mapa Grad-CAM:")
+        st.image(heat_map, caption="Regiones que más influyeron en la predicción según Grad-CAM", use_container_width=True)
 
 
 # Footer
