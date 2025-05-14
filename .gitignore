@@ -4,3 +4,4 @@ venv/
 .venv/
 src/__init__.py
 src/__pycache__/
+dataset/

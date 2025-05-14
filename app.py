@@ -26,51 +26,6 @@ with st.sidebar:
 
 st.divider()
 
-#================================================================================================================================================================
-# Clase Grad_CAM 
-class GradCAM_Sigmoid:
-    def __init__(self, model, target_layer_name):
-        self.model = model
-        self.target_layer_name = target_layer_name
-        self.gradients = None
-        self.activations = None
-        self._register_hooks()
-
-    def _register_hooks(self):
-        for name, module in self.model.named_modules():
-            if name == self.target_layer_name:
-                module.register_forward_hook(self._forward_hook)
-                module.register_backward_hook(self._backward_hook)
-
-    def _forward_hook(self, module, input, output):
-        self.activations = output
-
-    def _backward_hook(self, module, grad_input, grad_output):
-        self.gradients = grad_output[0]
-
-    def __call__(self, input_tensor):
-        self.model.zero_grad()
-        output = self.model(input_tensor)
-        score = output.squeeze()  # Escalar
-        score.backward(retain_graph=True)
-
-        # Grad-CAM
-        pooled_gradients = self.gradients.mean(dim=(2, 3), keepdim=True)  # [B, C, 1, 1]
-        weighted_activations = pooled_gradients * self.activations  # [B, C, H, W]
-        cam = weighted_activations.sum(dim=1, keepdim=True)  # [B, 1, H, W]
-        cam = torch.relu(cam)
-
-        cam = torch.nn.functional.interpolate(cam, size=(64, 64), mode='bilinear', align_corners=False)
-        cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
-        return cam.squeeze()
-def initialize_gradcam_sigmoid(model, model_choice):
-    if model_choice == "CNN_3C":
-        target_layer = "conv3"
-    else:
-        target_layer = "conv4"
-    return GradCAM_Sigmoid(model, target_layer)
-#================================================================================================================================================================
-
 #Cargar el modelo (definición de función)
 @st.cache_resource #Esta función permite que solo se vuelva a ejecutar esta función si el parámetro 'model_choice' cambia, de forma que es más eficiente
 def load_model(model_choice):
@@ -116,9 +71,8 @@ def clear_gradcam_hooks(model):
             for hook in module.registered_hooks:
                 hook.remove()
 
-# Inicializar Grad-CAM torchcam y el Grad-CAM sigmoid 
+# Inicializar Grad-CAM torchcam
 cam_torchcam = initialize_gradcam(model, model_choice)
-cam_sigmoid = initialize_gradcam_sigmoid(model, model_choice)
 heat_map = None
 
 # Carga de la imagen
@@ -165,18 +119,10 @@ if uploaded_image is not None:
         st.markdown("<h4 style='text-align: center;'>Mapa Grad-CAM:</h4>", unsafe_allow_html=True)
         # Evaluación de la imagen
 
-        # Elección de la clase predicha
-        predicted_class = 1 if probability >= 0.5 else 0
-
-        #======================================================================================================================================================================
-        # Extracción del mapa  (Se produce "IndexError: index 1 is out of bounds for dimension 1 with size 1" en la función cam_extractor con las clases positivas, reales) 
-        class_to_explain = predicted_class
-        if predicted_class == 1:
-            class_to_explain = 0
-        activation_map = cam_torchcam(class_to_explain, output)
+        # Activación del extractor
+        activation_map = cam_torchcam(0, output)
         #activation_map = cam_extractor(predicted_class, output)
-        #======================================================================================================================================================================
-
+        
         # Limpiar hooks para permitir cambio de imágenes en la misma sesión
         clear_gradcam_hooks(model)
         
@@ -218,7 +164,7 @@ if uploaded_image is not None:
 
 st.divider()
 
-col4, col5 = st.columns([1, 1]) # Crea dos columnas
+st.markdown("### **Añadir registro de imágenes o algo parecido**")
 
 
 
