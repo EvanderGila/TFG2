@@ -2,21 +2,20 @@
 import streamlit as st
 import torch
 from torchvision import transforms
+from torchvision.transforms import Resize
 from PIL import Image
 from src.models import CNN_3C, CNN_4C
 from torchcam.methods import GradCAM
 from torchcam.utils import overlay_mask
 from torchvision.transforms.functional import to_pil_image
 
+
 # Configurar que siempre se expanda por defecto para evitar confusiones
 st.set_page_config(layout="wide", initial_sidebar_state="expanded")
-
 
 # Título principal
 st.markdown("<h1 style='text-align: center;'>Detección de imágenes sintéticas</h1>", unsafe_allow_html=True)
 st.markdown("<h3 style='text-align: center;'>Detección de imágenes generadas por Stable Diffusion</h3>", unsafe_allow_html=True)
-#st.title("Detección de imágenes sintéticas")
-#st.write("### Detección de imágenes generadas por Stable Diffusion")
 
 
 # Selección del tipo de modelo a usar mediante una sidebar
@@ -26,6 +25,51 @@ with st.sidebar:
     st.write(f"Modelo seleccionado: **{model_choice}**")
 
 st.divider()
+
+#================================================================================================================================================================
+# Clase Grad_CAM 
+class GradCAM_Sigmoid:
+    def __init__(self, model, target_layer_name):
+        self.model = model
+        self.target_layer_name = target_layer_name
+        self.gradients = None
+        self.activations = None
+        self._register_hooks()
+
+    def _register_hooks(self):
+        for name, module in self.model.named_modules():
+            if name == self.target_layer_name:
+                module.register_forward_hook(self._forward_hook)
+                module.register_backward_hook(self._backward_hook)
+
+    def _forward_hook(self, module, input, output):
+        self.activations = output
+
+    def _backward_hook(self, module, grad_input, grad_output):
+        self.gradients = grad_output[0]
+
+    def __call__(self, input_tensor):
+        self.model.zero_grad()
+        output = self.model(input_tensor)
+        score = output.squeeze()  # Escalar
+        score.backward(retain_graph=True)
+
+        # Grad-CAM
+        pooled_gradients = self.gradients.mean(dim=(2, 3), keepdim=True)  # [B, C, 1, 1]
+        weighted_activations = pooled_gradients * self.activations  # [B, C, H, W]
+        cam = weighted_activations.sum(dim=1, keepdim=True)  # [B, 1, H, W]
+        cam = torch.relu(cam)
+
+        cam = torch.nn.functional.interpolate(cam, size=(64, 64), mode='bilinear', align_corners=False)
+        cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
+        return cam.squeeze()
+def initialize_gradcam_sigmoid(model, model_choice):
+    if model_choice == "CNN_3C":
+        target_layer = "conv3"
+    else:
+        target_layer = "conv4"
+    return GradCAM_Sigmoid(model, target_layer)
+#================================================================================================================================================================
 
 #Cargar el modelo (definición de función)
 @st.cache_resource #Esta función permite que solo se vuelva a ejecutar esta función si el parámetro 'model_choice' cambia, de forma que es más eficiente
@@ -72,8 +116,9 @@ def clear_gradcam_hooks(model):
             for hook in module.registered_hooks:
                 hook.remove()
 
-# Inicializar Grad-CAM
-cam_extractor = initialize_gradcam(model, model_choice)
+# Inicializar Grad-CAM torchcam y el Grad-CAM sigmoid 
+cam_torchcam = initialize_gradcam(model, model_choice)
+cam_sigmoid = initialize_gradcam_sigmoid(model, model_choice)
 heat_map = None
 
 # Carga de la imagen
@@ -100,9 +145,9 @@ if uploaded_image is not None:
     
     st.markdown("### Resultado:")
     if probability >= 0.5:
-        st.success(f"✅ {prediction} con una confianza del `{confidence:.4f}%`")
+        st.success(f"#### ✅ {prediction} con una confianza del **{confidence:.4f}%**")
     else:
-        st.error(f"⚠️ {prediction} con una confianza del `{confidence:.4f}%`")
+        st.error(f"#### ⚠️ {prediction} con una confianza del **{confidence:.4f}%**")
 
 #Creamos columnas para mostrar los tres resultados
 col1, col2, col3 = st.columns([1, 1, 1]) # Crea tres columnas
@@ -128,7 +173,7 @@ if uploaded_image is not None:
         class_to_explain = predicted_class
         if predicted_class == 1:
             class_to_explain = 0
-        activation_map = cam_extractor(class_to_explain, output)
+        activation_map = cam_torchcam(class_to_explain, output)
         #activation_map = cam_extractor(predicted_class, output)
         #======================================================================================================================================================================
 
@@ -154,7 +199,7 @@ if uploaded_image is not None:
         # Calculamos las salidas del modelo
         output_saliency = model(image_tensor)
         #Obtenemos el valor de salida [batch_size, num_classes], siendo el tamaño del lote de 1 y la 'predicted _class' de 0 o 1
-        score = output_saliency[0, predicted_class]
+        score = output_saliency[0, 0]
         # Realiza la retrorpopagación calculando los gradientes y almacenándolo en el atributo '.grad' del tensor 'image_tensor'
         score.backward()
 
@@ -170,6 +215,11 @@ if uploaded_image is not None:
 
         #Mostramos el mapa de saliencia
         st.image(saliency_img_resized, caption="Mapa de saliencia: regiones sensibles al modelo", use_container_width=True)
+
+st.divider()
+
+col4, col5 = st.columns([1, 1]) # Crea dos columnas
+
 
 
 # Footer
