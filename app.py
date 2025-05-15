@@ -75,6 +75,33 @@ def clear_gradcam_hooks(model):
             for hook in module.registered_hooks:
                 hook.remove()
 
+# Cambiar formato de imagen y descargar (función)
+def exportar_imagen_pil(imagen_pil, nombre_archivo, formato):
+    
+    # Crear buffer en memoria
+    buffer = io.BytesIO()
+
+    # Convertimos imagen PIL a figura matplotlib para exportar como SVG si se requiere
+    fig, ax = plt.subplots(figsize=(2.5, 2.5), dpi=100)
+    ax.imshow(imagen_pil)
+    ax.axis('off')
+    fig.tight_layout(pad=0)
+
+    # Guardamos la imagen en el buffer
+    fig.savefig(buffer, format=formato.lower(), bbox_inches='tight', facecolor=fig.get_facecolor())
+    buffer.seek(0)
+
+    # Streamlit download button
+    st.download_button(
+        label=f"📥 Descargar {nombre_archivo} como {formato}",
+        data=buffer,
+        file_name=f"{nombre_archivo.lower().replace(' ', '_')}.{formato.lower()}",
+        mime="image/png" if formato == "PNG" else "image/svg+xml"
+    )
+
+    plt.close(fig)
+    buffer.close()
+
 # Inicializar Grad-CAM torchcam
 cam_torchcam = initialize_gradcam(model, model_choice)
 heat_map = None
@@ -138,6 +165,10 @@ if uploaded_image is not None:
         if heat_map is not None:
             st.image(heat_map, caption="Grad-CAM: regiones sensibles al modelo", use_container_width=True)
 
+            # Mostrar botón de descarga
+            formato_gcam = st.selectbox("Formato de descarga Grad-CAM", ["PNG", "SVG"], key="formato_gcam")
+            exportar_imagen_pil(heat_map, "Mapa Grad-CAM", formato_gcam)
+
     with col3:
         st.markdown("<h4 style='text-align: center;'>Mapa de Saliencia:</h4>", unsafe_allow_html=True)
 
@@ -148,7 +179,7 @@ if uploaded_image is not None:
 
         # Calculamos las salidas del modelo
         output_saliency = model(image_tensor)
-        #Obtenemos el valor de salida [batch_size, num_classes], siendo el tamaño del lote de 1 y la 'predicted _class' de 0 o 1
+        #Obtenemos el valor de salida [batch_size, num_classes], siendo el tamaño del lote de 1 y la 'predicted _class' de 0 porque solo hay una neurona (clase)
         score = output_saliency[0, 0]
         # Realiza la retrorpopagación calculando los gradientes y almacenándolo en el atributo '.grad' del tensor 'image_tensor'
         score.backward()
@@ -165,6 +196,9 @@ if uploaded_image is not None:
 
         #Mostramos el mapa de saliencia
         st.image(saliency_img_resized, caption="Mapa de saliencia: regiones sensibles al modelo", use_container_width=True)
+        # Mostrar botón de descarga
+        formato_sal = st.selectbox("Formato de descarga Saliencia", ["PNG", "SVG"], key="formato_sal")
+        exportar_imagen_pil(saliency_img_resized, "Mapa de Saliencia", formato_sal)
 
 st.divider()
 
