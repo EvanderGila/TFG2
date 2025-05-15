@@ -1,13 +1,16 @@
 """Este archivo contiene la aplicación principal en streamlit"""
 import streamlit as st
 import torch
+import io
 from torchvision import transforms
-from torchvision.transforms import Resize
 from PIL import Image
 from src.models import CNN_3C, CNN_4C
 from torchcam.methods import GradCAM
 from torchcam.utils import overlay_mask
 from torchvision.transforms.functional import to_pil_image
+#import plotly.express as px
+import matplotlib.pyplot as plt
+import pandas as pd
 
 
 # Configurar que siempre se expanda por defecto para evitar confusiones
@@ -23,6 +26,7 @@ with st.sidebar:
     st.sidebar.title("Opciones del modelo")
     model_choice = st.sidebar.selectbox("Selecciona una arquitectura", ["CNN_3C", "CNN_4C"])
     st.write(f"Modelo seleccionado: **{model_choice}**")
+    st.divider()
 
 st.divider()
 
@@ -164,7 +168,89 @@ if uploaded_image is not None:
 
 st.divider()
 
-st.markdown("### **Añadir registro de imágenes o algo parecido**")
+if uploaded_image is not None:
+    col4, col5, col6 = st.columns([0.25, 0.5, 0.25]) # Crea 2 columnas
+
+    with col4:
+        st.markdown("")
+
+    #Gráfico tipo quesito de probabilidades
+    with col5:
+        # Opción para mostrar/ocultar el gráfico
+        mostrar_grafico = st.sidebar.checkbox("Mostrar gráfico de distribución de probabilidad", value=False)
+
+        if mostrar_grafico:
+            # Crear gráfico de pastel
+            fig, ax = plt.subplots(facecolor='#1e1e1e')
+            labels = ['Real', 'Fake']
+            sizes = [probability, 1 - probability]
+            colors = ['#00cc66', '#cc3333']
+            # Explode automático si una parte es pequeña (<10%) -- Es decir, siempre
+            explode = [0.1 if s < 0.1 else 0 for s in sizes]
+
+            wedges, texts, autotexts = ax.pie(sizes, labels=labels, autopct='%1.4f%%', startangle=90, colors=colors, explode=explode, textprops={'color': 'white', 'weight': 'bold', 'fontsize': 11})
+            ax.axis('equal')  # Para que sea un círculo
+
+            st.pyplot(fig)
+            st.caption("Distribución visual de la probabilidad predicha por el modelo")
+        else:
+            
+            if probability >= 0.5 :
+                st.markdown("Al seleccionar *\"Mostrar gráfico de distribución de probabilidad\"* en la barra lateral izquierda se creará un gráfico de probabilidad circular que expondrá en su parte superior la probabilidad de la clase *\"Fake\"* en la parte superior y la clase *\"Real\"* en su parte inferior")
+                st.error(f"###### La probabilidad de que esta imagen sea generada sintéticamente ***(Fake)*** es del: ***{((1-probability)*100):.4f}%***")
+                st.success(f"###### La probabilidad de que esta imagen sea real ***(Real)*** es del: ***{(probability*100):.4f}%***")  
+            else:
+                st.markdown("Al seleccionar *\"Mostrar gráfico de distribución de probabilidad\"* en la barra lateral izquierda se creará un gráfico de probabilidad circular que expondrá en su parte superior la probabilidad de la clase *\"Real\"* en la parte superior y la clase *\"Fake\"* en su parte inferior") 
+                st.success(f"###### La **probabilidad** de que esta imagen sea real ***(Real)*** es del: ***{(probability*100):.4f}%***")
+                st.error(f"###### La **probabilidad** de que esta imagen sea generada sintéticamente ***(Fake)*** es del: ***{((1-probability)*100):.4f}%***")
+    #Otra cosa
+    with col6:
+        if mostrar_grafico:
+            st.markdown("")
+            st.markdown("")
+            st.markdown("")
+            st.markdown("")
+            st.markdown("")
+            st.markdown("")
+            st.markdown("")
+            st.markdown("")
+            st.markdown("")
+
+            if probability >= 0.5 :
+                st.markdown("")
+                st.markdown("")
+                st.markdown("")
+                st.error(f"###### La probabilidad de que esta imagen sea generada sintéticamente ***(Fake)*** es del: ***{((1-probability)*100):.4f}%***")
+                st.success(f"###### La probabilidad de que esta imagen sea real ***(Real)*** es del: ***{(probability*100):.4f}%***")  
+            else:
+                
+                st.markdown("")
+                st.markdown("")
+                st.markdown("")
+                st.success(f"###### La **probabilidad** de que esta imagen sea real ***(Real)*** es del: ***{(probability*100):.4f}%***")
+                st.error(f"###### La **probabilidad** de que esta imagen sea generada sintéticamente ***(Fake)*** es del: ***{((1-probability)*100):.4f}%***")
+
+            # Exportar gráfico circular en formato PNG y SVG
+
+            # Selector de formato de exportación mediante un selectbox
+            formato_exportacion = st.selectbox("Formato de exportación del gráfico", ["PNG", "SVG"])
+
+            # Crear buffer en memoria
+            buffer_grafico = io.BytesIO()
+
+            # Guardar en el formato elegido
+            fig.savefig(buffer_grafico, format=formato_exportacion.lower(), bbox_inches='tight', facecolor=fig.get_facecolor())
+            buffer_grafico.seek(0)
+
+            # Crear botón de descarga
+            st.download_button(label=f"📥 Descargar gráfico como {formato_exportacion}", data=buffer_grafico, file_name=f"grafico_distribucion.{formato_exportacion.lower()}", mime="image/png" if formato_exportacion == "PNG" else "image/svg+xml")
+
+            buffer_grafico.close()
+
+            
+    
+
+
 
 
 
