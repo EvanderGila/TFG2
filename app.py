@@ -65,7 +65,7 @@ preprocess = transforms.Compose([
     transforms.Normalize(mean=[0.4718, 0.4628, 0.4176], std=[0.2361, 0.2360, 0.2636])  # Media y desviación típica del dataset de entrenamiento
 ])
 
-# Inicializar Grad-CAM (definición de función)
+# Inicializar Grad-CAM (definición de función) 
 def initialize_gradcam(model, model_choice):
     if model_choice == "CNN_3C":
         target_layer = "conv3"  # Última capa convolucional del modelo 3C
@@ -122,29 +122,44 @@ uploaded_image = st.file_uploader("Sube una imagen para clasificar", type=["jpg"
 
 # Procesado y resultado del modelo sobre la imagen
 if uploaded_image is not None:
-    # Formato RGB para la imagen
-    image = Image.open(uploaded_image).convert("RGB")
-    # Preprocesar la imagen y dejarla en formato tensor
-    input_tensor = preprocess(image).unsqueeze(0)  # Como el tensor tiene forma [C, H, W] y Pytorch espera [Batch_size, C, H, W] se añade una dimensión: [1, C, H, W]
+    try:
+        # Abrir imagen y formato RGB
+        image = Image.open(uploaded_image).convert("RGB")
+    except Exception as e:
+        st.error("No se pudo abrir la imagen")
+        image = None
+    if image is not None:
 
-    #Carga en el modelo
-    output = model(input_tensor)
-    # Traducimos la salida a probabilidad mediante sigmoid (clasificación binaria)
-    probability = torch.sigmoid(output).item()
-    # Clasificación de la imagen y confianza según probabilidad
-    if probability >= 0.5:
-        prediction = "Esta imagen es **real**"
-        confidence = probability * 100 # Usamos la propia probabilidad del modelo (1 = Real)
-    else:
-        prediction = "Esta imagen está **generada sintéticamente (FAKE)**"
-        confidence = (1 - probability) * 100 # Invertimos la probabilidad del modelo (0 = Fake)
-    
-    # Mostar resultado inicial del modelo
-    st.markdown("### Resultado:")
-    if probability >= 0.5:
-        st.success(f"#### ✅ {prediction} con una confianza del **{confidence:.4f}%**")
-    else:
-        st.error(f"#### ⚠️ {prediction} con una confianza del **{confidence:.4f}%**")
+        try:
+            # Preprocesar la imagen y dejarla en formato tensor
+            input_tensor = preprocess(image).unsqueeze(0)  # Como el tensor tiene forma [C, H, W] y Pytorch espera [Batch_size, C, H, W] se añade una dimensión: [1, C, H, W]
+        except Exception as e:
+            st.error("No se pudo abrir la imagen")
+            input_tensor = None
+    if input_tensor is not None:
+        try: 
+            #Carga en el modelo
+            output = model(input_tensor)
+            # Traducimos la salida a probabilidad mediante sigmoid (clasificación binaria)
+            probability = torch.sigmoid(output).item()
+        except Exception as e:
+            st.error("No se pudo abrir la imagen")
+            probability = None
+    if probability is not None:
+        # Clasificación de la imagen y confianza según probabilidad
+        if probability >= 0.5:
+            prediction = "Esta imagen es **real**"
+            confidence = probability * 100 # Usamos la propia probabilidad del modelo (1 = Real)
+        else:
+            prediction = "Esta imagen está **generada sintéticamente (FAKE)**"
+            confidence = (1 - probability) * 100 # Invertimos la probabilidad del modelo (0 = Fake)
+        
+        # Mostar resultado inicial del modelo
+        st.markdown("### Resultado:")
+        if probability >= 0.5:
+            st.success(f"#### ✅ {prediction} con una confianza del **{confidence:.4f}%**")
+        else:
+            st.error(f"#### ⚠️ {prediction} con una confianza del **{confidence:.4f}%**")
 
 #Creamos columnas para mostrar tres imágenes
 col1, col2, col3 = st.columns([1, 1, 1]) # Crea tres columnas con proporciones iguales
@@ -164,22 +179,24 @@ if uploaded_image is not None:
         st.markdown("<h4 style='text-align: center;'>Mapa Grad-CAM:</h4>", unsafe_allow_html=True)
         # Evaluación de la imagen
 
-        # Activación del extractor (siendo 0 el índice de la clase objetivo ya que solo hay una y output a salida del modelo)
-        activation_map = cam_torchcam(0, output)
-        
         #Opción si hay más de dos clases (Softmax)
         #Siendo predicted_class la clase predicha por un modelo softmax:
         #activation_map = cam_torchcam(predicted_class, output)
         #De forma que eliges la clase, diferente a sigmoid que solo tiene un resultado probabilistico
+        try: 
+            # Activación del extractor (siendo 0 el índice de la clase objetivo ya que solo hay una y output a salida del modelo)
+            activation_map = cam_torchcam(0, output)
         
-        # Limpiar hooks 
-        clear_gradcam_hooks(model)
+            # Limpiar hooks 
+            clear_gradcam_hooks(model)
         
-        #Convertir la imagen original y la máscara PIL y superponer
-        resized_img = transforms.Resize((64, 64))(image)
-        # activation_map[0] (Accede al primer y único mapa generado) .detach() (Devuelve una copia del tensor original que no está conectado a la gráfica de cálculo para evitar problemas)
-        heat_map = overlay_mask(resized_img, to_pil_image(activation_map[0].detach(), mode='F'), alpha=0.5)
-
+            #Convertir la imagen original y la máscara PIL y superponer
+            resized_img = transforms.Resize((64, 64))(image)
+            # activation_map[0] (Accede al primer y único mapa generado) .detach() (Devuelve una copia del tensor original que no está conectado a la gráfica de cálculo para evitar problemas)
+            heat_map = overlay_mask(resized_img, to_pil_image(activation_map[0].detach(), mode='F'), alpha=0.5)
+        except Exception as e:
+            st.error(f"Error al generar el mapa Grad-CAM: {e}")
+            heat_map = None
         #Mostrar el mapa de calor Grad-CAM
         if heat_map is not None:
             st.image(heat_map, caption="Grad-CAM: regiones sensibles al modelo", use_container_width=True)
@@ -192,34 +209,38 @@ if uploaded_image is not None:
     with col3:
         # Título
         st.markdown("<h4 style='text-align: center;'>Mapa de Saliencia:</h4>", unsafe_allow_html=True)
+        try:
+            # Copiamos la imagen en forma de tensor para no modificar el original y lo separamos de  la gráfica de cálculo
+            image_tensor = input_tensor.clone().detach()
+            # Activamos el seguimiento de los gradientes
+            image_tensor.requires_grad_()
 
-        # Copiamos la imagen en forma de tensor para no modificar el original y lo separamos de  la gráfica de cálculo
-        image_tensor = input_tensor.clone().detach()
-        # Activamos el seguimiento de los gradientes
-        image_tensor.requires_grad_()
+            # Calculamos las salidas del modelo
+            output_saliency = model(image_tensor)
+            #Obtenemos el valor de salida [batch_size, num_classes], siendo el tamaño del lote de 1 (0) y la 'predicted _class' de 0 porque solo hay una neurona (clase)
+            score = output_saliency[0, 0]
+            # Realiza la retrorpopagación calculando los gradientes (Calculando la derivada de la salida con respecto a cada entrada (píxel)) y almacenándolo en el atributo '.grad' del tensor 'image_tensor'
+            score.backward()
 
-        # Calculamos las salidas del modelo
-        output_saliency = model(image_tensor)
-        #Obtenemos el valor de salida [batch_size, num_classes], siendo el tamaño del lote de 1 (0) y la 'predicted _class' de 0 porque solo hay una neurona (clase)
-        score = output_saliency[0, 0]
-        # Realiza la retrorpopagación calculando los gradientes (Calculando la derivada de la salida con respecto a cada entrada (píxel)) y almacenándolo en el atributo '.grad' del tensor 'image_tensor'
-        score.backward()
+            # Cáclulo del mapa de saliencia, grad.data.abs() calcula el valor absoluto de los gradientes, .squeeze() elimina la dimensión extra y max(dim=0)[0] para cada píxel (x,y), toma el canal con mayor gradiente (R,G,B)
+            saliency = image_tensor.grad.data.abs().squeeze().max(dim=0)[0]
 
-        # Cáclulo del mapa de saliencia, grad.data.abs() calcula el valor absoluto de los gradientes, .squeeze() elimina la dimensión extra y max(dim=0)[0] para cada píxel (x,y), toma el canal con mayor gradiente (R,G,B)
-        saliency = image_tensor.grad.data.abs().squeeze().max(dim=0)[0]
+            # Normaliza todos los valores al rango [0, 1] para poder visualizarlos como imagen
+            saliency_normalized = ((saliency - saliency.min()) / (saliency.max() - saliency.min()))
 
-        # Normaliza todos los valores al rango [0, 1] para poder visualizarlos como imagen
-        saliency_normalized = ((saliency - saliency.min()) / (saliency.max() - saliency.min()))
+            # Convertimos a imagen PIL para mostrar y redimensionamos
+            saliency_img = to_pil_image(saliency_normalized, mode='L').convert('RGB')
+            saliency_img_resized = transforms.Resize((64, 64))(saliency_img)
+        except Exception as e:
+            st.error(f"Error al generar el mapa de Saliencia: {e}")
+            saliency_img_resized = None
 
-        # Convertimos a imagen PIL para mostrar y redimensionamos
-        saliency_img = to_pil_image(saliency_normalized, mode='L').convert('RGB')
-        saliency_img_resized = transforms.Resize((64, 64))(saliency_img)
-
-        #Mostramos el mapa de saliencia
-        st.image(saliency_img_resized, caption="Mapa de saliencia: regiones sensibles al modelo", use_container_width=True)
-        # Mostrar botón de descarga
-        formato_sal = st.selectbox("Formato de descarga Saliencia", ["PNG", "SVG"], key="formato_sal")
-        exportar_imagen_pil(saliency_img_resized, "Mapa de Saliencia", formato_sal)
+        if saliency_img_resized is not None:
+            #Mostramos el mapa de saliencia
+            st.image(saliency_img_resized, caption="Mapa de saliencia: regiones sensibles al modelo", use_container_width=True)
+            # Mostrar botón de descarga
+            formato_sal = st.selectbox("Formato de descarga Saliencia", ["PNG", "SVG"], key="formato_sal")
+            exportar_imagen_pil(saliency_img_resized, "Mapa de Saliencia", formato_sal)
 
 # Divisor de las imágenes y el quesito de probabilidades
 st.divider()
