@@ -124,3 +124,38 @@ def export_graph(fig):
     st.download_button(label=f"📥 Descargar gráfico como {formato_exportacion}", data=buffer_grafico, file_name=f"grafico_distribucion.{formato_exportacion.lower()}", mime="image/png" if formato_exportacion == "PNG" else "image/svg+xml")
 
     buffer_grafico.close()
+
+# Seleccionar 'alpha' de Grad-CAM
+def alpha_gradcam():
+    # """Permite la selección del valor de opacidad del mapa de calor de Grad-CAM"""
+    alpha = st.sidebar.slider("Transparencia Grad-CAM", 0.0, 1.0, 0.5) # Min, Max, Valor por defecto
+    return alpha
+
+#Mostar los detalles del modelo
+def show_model_details(model_choice):
+    # """Permite mostrar los detalles del modelo seleccionado"""
+    if model_choice == "CNN_3C":
+        st.write("""
+            #### CNN de 3 Capas Convolucionales
+            Esta arquitectura consiste en tres capas convolucionales seguidas de capas de normalización por lotes, funciones de activación ReLU y capas de max-pooling.
+            La función de activación es la sigmoid.
+            """)
+        st.markdown("Número de capas convolucionales: **3**")
+        st.markdown("Funciones de activación: **ReLU**")
+        st.markdown("Pooling: **Max Pooling**")
+        st.markdown("Número de pooling: **3**")
+        st.markdown("Dropout: **0.5**")
+
+    elif model_choice == "CNN_4C":
+        st.write("""
+            #### CNN de 4 Capas Convolucionales
+            Esta arquitectura consiste en cuatro capas convolucionales seguidas de capas de normalización por lotes, funciones de activación ReLU y capas de max-pooling.
+            La función de activación es la sigmoid.
+            """)
+        st.markdown("Número de capas convolucionales: **4**")
+        st.markdown("Funciones de activación: **ReLU**")
+        st.markdown("Pooling: **Max Pooling**")
+        st.markdown("Número de pooling: **4**")
+        st.markdown("Dropout: **0.5**")
+    else:
+        st.info("Selecciona una arquitectura para ver sus detalles.")

@@ -2,9 +2,6 @@
 
 # Librerías externas
 import streamlit as st
-from torchvision import transforms
-from torchcam.utils import overlay_mask
-from torchvision.transforms.functional import to_pil_image
 
 # Librerías locales
 from src import gradcam_utils as gcu
@@ -25,8 +22,13 @@ st.markdown("<h3 style='text-align: center;'>Detección de imágenes generadas p
 # Creación barra lateral y selección de modelo
 with st.sidebar:
     st.sidebar.title("Opciones del modelo")
+    # Selección del modelo
     model_choice = st.sidebar.selectbox("Selecciona una arquitectura", ["CNN_3C", "CNN_4C"])
     st.write(f"Modelo seleccionado: **{model_choice}**")
+    # Mostar detalles del modelo
+    with st.expander("Detalles del modelo seleccionado"):
+        vis.show_model_details(model_choice)
+        
     # División dentro de la barra lateral
     st.divider()
 
@@ -53,19 +55,19 @@ if uploaded_image is not None:
         # Preprocesar la imagen y convertirla a tensor mediante el módulo preprocess    
         input_tensor = pr.preprocess_image(image)
 
-    if input_tensor is not None:
-        # Obtención de probabilidades y salidas mediante el módulo model_loading
-        probability, output = ml.predict_image(model, input_tensor)
+        if input_tensor is not None:
+            # Obtención de probabilidades y salidas mediante el módulo model_loading
+            probability, output = ml.predict_image(model, input_tensor)
 
-        # Conseguir los valores de 'prediction' y 'confidence' del módulo de visualización
-        prediction, confidence = vis.display_prediction(probability)
+            # Conseguir los valores de 'prediction' y 'confidence' del módulo de visualización
+            prediction, confidence = vis.display_prediction(probability)
         
-        # Mostar resultado inicial del modelo (prediction y confidence)
-        st.markdown("### Resultado:")
-        if probability >= 0.5:
-            st.success(f"#### ✅ {prediction} con una confianza del **{confidence:.4f}%**")
-        else:
-            st.error(f"#### ⚠️ {prediction} con una confianza del **{confidence:.4f}%**")
+            # Mostar resultado inicial del modelo (prediction y confidence)
+            st.markdown("### Resultado:")
+            if probability >= 0.5:
+                st.success(f"#### ✅ {prediction} con una confianza del **{confidence:.4f}%**")
+            else:
+                st.error(f"#### ⚠️ {prediction} con una confianza del **{confidence:.4f}%**")
 
 #Creamos columnas para mostrar tres imágenes
 col1, col2, col3 = st.columns([1, 1, 1]) # Crea tres columnas con proporciones iguales
@@ -86,17 +88,23 @@ if uploaded_image is not None:
         # Título
         st.markdown("<h4 style='text-align: center;'>Mapa Grad-CAM:</h4>", unsafe_allow_html=True)
 
+        # Cambiar 'alpha' del mapa de calor mediante un slider
+        alpha = vis.alpha_gradcam()
         # Generacion del mapa de mediante el módulo explanation
-        heat_map = expl.generate_gradcam_heatmap(model, cam_torchcam, image, output)
+        heat_map = expl.generate_gradcam_heatmap(model, cam_torchcam, image, output, alpha)
 
         #Mostrar el mapa de calor Grad-CAM
         if heat_map is not None:
+            # Mostar map de calor
             st.image(heat_map, caption="Mapa Grad-CAM: regiones sensibles al modelo", use_container_width=True)
 
             # Mostrar botón de descarga
             formato_gcam = st.selectbox("Formato de descarga Grad-CAM", ["PNG", "SVG"], key="formato_gcam")
+            
             # Exportar (Módulo de visualización)
             vis.export_imagen_pil(heat_map, "Mapa Grad-CAM", formato_gcam)
+        
+
 
     # Columa 3: Muestra el mapa de Saliencia
     with col3:
@@ -107,7 +115,7 @@ if uploaded_image is not None:
         saliency_img_resized = expl.generate_saliency_map(model, input_tensor)
 
         if saliency_img_resized is not None:
-            #Mostramos el mapa de saliencia
+            # Mostrar mapa de saliencia
             st.image(saliency_img_resized, caption="Mapa de saliencia: regiones sensibles al modelo", use_container_width=True)
             # Mostrar botón de descarga
             formato_sal = st.selectbox("Formato de descarga Saliencia", ["PNG", "SVG"], key="formato_sal")

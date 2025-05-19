@@ -9,7 +9,7 @@ import streamlit as st
 from src import gradcam_utils as gcu
 
 # Generación del mapa Grad-CAM
-def generate_gradcam_heatmap(model, cam_torchcam, image, output):
+def generate_gradcam_heatmap(model, cam_torchcam, image, output, alpha):
     # """Genera el mapa de calor Grad-CAM"""
     try: 
         # Activación del extractor (siendo 0 el índice de la clase objetivo ya que solo hay una y output a salida del modelo)
@@ -21,7 +21,7 @@ def generate_gradcam_heatmap(model, cam_torchcam, image, output):
         #Convertir la imagen original y la máscara PIL y superponer
         resized_img = transforms.Resize((64, 64))(image)
         # activation_map[0] (Accede al primer y único mapa generado) .detach() (Devuelve una copia del tensor original que no está conectado a la gráfica de cálculo para evitar problemas)
-        heat_map = overlay_mask(resized_img, to_pil_image(activation_map[0].detach(), mode='F'), alpha=0.5)
+        heat_map = overlay_mask(resized_img, to_pil_image(activation_map[0].detach(), mode = 'F'), alpha = alpha)
         
     except Exception as e:
         st.error(f"Error al generar el mapa Grad-CAM: {e}")
