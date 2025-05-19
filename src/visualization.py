@@ -62,17 +62,11 @@ def display_probability_text(probability: float):
     # """Muestra el texto con las probabilidades de real y fake cuando está activo el gráfico"""
     # Mostrar orden de imagen real (Fake-Real):
     if probability >= 0.5 :
-        st.markdown("")
-        st.markdown("")
-        st.markdown("")
         st.error(f"###### La probabilidad de que esta imagen sea generada sintéticamente ***(Fake)*** es del: ***{((1-probability)*100):.4f}%***")
         st.success(f"###### La probabilidad de que esta imagen sea real ***(Real)*** es del: ***{(probability*100):.4f}%***")  
             
     # Mostar orden de imagen falsa (Real-Fake):
     else:    
-        st.markdown("")
-        st.markdown("")
-        st.markdown("")
         st.success(f"###### La **probabilidad** de que esta imagen sea real ***(Real)*** es del: ***{(probability*100):.4f}%***")
         st.error(f"###### La **probabilidad** de que esta imagen sea generada sintéticamente ***(Fake)*** es del: ***{((1-probability)*100):.4f}%***")
 
