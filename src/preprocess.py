@@ -1,7 +1,7 @@
+"""Este módulo contiene funciones para abrir y preprocesar las imágenes."""
 from PIL import Image
 from torchvision import transforms
 import streamlit as st
-import torch
 
 # Preprocesado de la imagen (El mismo que en el entrenamiento del modelo)
 preprocess = transforms.Compose([
