@@ -1,6 +1,6 @@
 # ***(((CAMBIAR POR EL TÍTULO DEL PROYECTO!!!)))***
 
-## *Evander Gila Reques, TFG de Ing. de Software*
+## *Evander Gila Reques, TFG de Ing. de Tecnologías para la Sociedad de la Información*
 
 #### { La URL para lanzar la aplicación en Streamlit Cloud es: https://fakeimagedetectortfg.streamlit.app/ }
 
