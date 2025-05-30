@@ -44,7 +44,51 @@ if model is None:
 cam_torchcam = gcu.initialize_gradcam(model, model_choice)
 
 # === CARGA DE LA IMAGEN ===
-uploaded_image = st.file_uploader("Sube una imagen para clasificar", type=["jpg", "jpeg", "png"])
+col_uploader, col_examples = st.columns([2, 1]) # Columnas de subida de imagen y ejemplos respectivamente
+
+real_img_path = "assets/example_images/Real/Real_image_1.jpg" # Path de la imagen real de ejemplo
+fake_img_path = "assets/example_images/Fake/Fake_image_3.jpg" # Path de la imagen fake de ejemplo
+
+if "uploader_key" not in st.session_state:
+    st.session_state["uploader_key"] = 0
+
+# Subir imagen
+with col_uploader:
+    # Imagen subida por el usuario aquí
+    user_uploaded = st.file_uploader("Sube una imagen para clasificar", type=["jpg", "jpeg", "png"], key=st.session_state["uploader_key"])
+    if user_uploaded is not None:
+        # Guardamos la imagen subida con session_state para que se quede en memoria
+        st.session_state["uploaded_image"] = user_uploaded
+        st.session_state["user_uploaded_image"] = True  # Imagen subida por el usuario
+        
+# Imágenes de ejemplo
+with col_examples:
+    # Si no hay ninguna imagen subida por el usuario, enseñar botones de ejemplo
+    if not st.session_state.get("user_uploaded_image", False):
+        st.markdown("#### O prueba con una imagen de ejemplo:")
+        col_real, col_fake = st.columns([1, 1]) # Columnas de las opciones real y fake
+
+        with col_real:
+            if st.button("🟩 Imagen real 🟩", help="Imagen de un coche"):
+                # Guardamos la imagen subida con session_state para que se quede en memoria
+                st.session_state["uploaded_image"] = open(real_img_path, "rb") # rb: r-> read (leer el archivo), b->binary (modo binario, para imagen es necesario)
+
+        with col_fake:
+            if st.button("🟥 Imagen fake 🟥", help="Imagen de una rana"):
+                # Guardamos la imagen subida con session_state para que se quede en memoria
+                st.session_state["uploaded_image"] = open(fake_img_path, "rb")
+
+    # Si hay una imagen subida por el usuario, mostrar botón de 'reset'
+    else:
+        st.markdown("#### Para volver a mostrar los ejemplos:")
+        if st.button("🔄 Reiniciar las imágenes actuales 🔄"):
+            st.session_state.pop("uploaded_image", None)
+            st.session_state.pop("user_uploaded_image", None)
+            st.session_state["uploader_key"] += 1 # Actualizar la clave del file_uploader para limpiarlo
+            st.rerun() # re-renderizar el file_uploader con la nueva clave
+
+# Establecer la imagen a usar
+uploaded_image = st.session_state.get("uploaded_image", None)
 
 # === PREPROCESADO Y EVALUACIÓN ===
 if uploaded_image is not None:
@@ -70,21 +114,21 @@ if uploaded_image is not None:
                 st.error(f"#### ⚠️ {prediction} con una confianza del **{confidence:.4f}%**")
 
 #Creamos columnas para mostrar tres imágenes
-col1, col2, col3 = st.columns([1, 1, 1]) # Crea tres columnas con proporciones iguales
+col_raw_img, col_gradCam, col_sal = st.columns([1, 1, 1]) # Crea tres columnas con proporciones iguales
 
 # === MAPAS DE CALOR ===
 # Si hay imagen muestra las columnas y su contenido
 if uploaded_image is not None:
 
     # Columna 1: Muestra la imagen original 
-    with col1:
+    with col_raw_img:
         # Título
         st.markdown("<h4 style='text-align: center;'>Imagen original:</h4>", unsafe_allow_html=True)
         #Mostar la imagen
         st.image(image, caption="Imagen subida", use_container_width=True)
     
     # Columa 2: Muestra el mapa de calor Grad-CAM
-    with col2:
+    with col_gradCam:
         # Título
         st.markdown("<h4 style='text-align: center;'>Mapa Grad-CAM:</h4>", unsafe_allow_html=True)
 
@@ -107,7 +151,7 @@ if uploaded_image is not None:
 
 
     # Columa 3: Muestra el mapa de Saliencia
-    with col3:
+    with col_sal:
         # Título
         st.markdown("<h4 style='text-align: center;'>Mapa de Saliencia:</h4>", unsafe_allow_html=True)
         
@@ -129,15 +173,15 @@ st.divider()
 # Si se ha subido la imagen, mostrar probabilidades de esta
 if uploaded_image is not None:
     # Crear las columnas
-    col4, col5, col6 = st.columns([0.25, 0.5, 0.25]) # Crea 3 columnas
+    col_blank, col_graph, col_sta_dow = st.columns([0.25, 0.5, 0.25]) # Crea 3 columnas
     
     # Columna 1: Espacio en blanco (Estética)
-    with col4:
+    with col_blank:
         # Espacio en blanco
         st.markdown("")
 
     # Columna 2: Gráfico tipo quesito de probabilidades/ probabilidades a secas
-    with col5:
+    with col_graph:
         # Opción para mostrar/ocultar el gráfico
         mostrar_grafico = st.sidebar.checkbox("Mostrar gráfico de distribución de probabilidad", value=False)
 
@@ -151,7 +195,7 @@ if uploaded_image is not None:
             vis.display_probability_text_extended(probability)
 
     # Columna 6: Mostar estadísticas y descarga del gráfico
-    with col6:
+    with col_sta_dow:
 
         # Si se selecciona el checkbox:
         if mostrar_grafico:

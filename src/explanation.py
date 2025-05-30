@@ -9,7 +9,6 @@ import streamlit as st
 from src import gradcam_utils as gcu
 
 # Generación del mapa Grad-CAM
-@st.cache_resource #Esto permite que solo se vuelva a ejecutar esta función si el parámetro 'model_choice' cambia, de forma que es más eficiente
 def generate_gradcam_heatmap(model, cam_torchcam, image, output, alpha):
     # """Genera el mapa de calor Grad-CAM"""
     try: 
@@ -31,7 +30,6 @@ def generate_gradcam_heatmap(model, cam_torchcam, image, output, alpha):
     return heat_map
 
 # Generar el mapa de saliencia
-@st.cache_resource #Esto permite que solo se vuelva a ejecutar esta función si el parámetro 'model_choice' cambia, de forma que es más eficiente
 def generate_saliency_map(model, input_tensor):
     # """Genera el mapa de Saliencia"""
     try:
