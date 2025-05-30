@@ -2,7 +2,7 @@
 # Librerías externas
 from torchcam.methods import GradCAM
 
-# Inicializar Grad-CAM 
+# Inicializar Grad-CAM
 def initialize_gradcam(model, model_choice):
     # """Inicializa GradCAM para la capa deseada del modelo según el tipo"""
     if model_choice == "CNN_3C":
