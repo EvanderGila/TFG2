@@ -72,7 +72,7 @@ def display_probability_text(probability: float):
 
 # === DESCARGAS ===
 
-# Descargar los mapas de Grad-CAM y Saliency
+# Descargar los mapas de Grad-CAM, Saliency y LIME
 def export_imagen_pil(imagen_pil, nombre_archivo, formato):
     # """Permite exportar y descargar imagenes pil"""
 
@@ -127,11 +127,13 @@ def export_graph(fig):
 
 # Seleccionar 'alpha' de Grad-CAM
 def alpha_gradcam():
+    # Título
+    st.sidebar.subheader("Opciones de Explicación Grad-CAM")
     # """Permite la selección del valor de opacidad del mapa de calor de Grad-CAM"""
     alpha = st.sidebar.slider("Transparencia Grad-CAM", 0.0, 1.0, 0.5) # Min, Max, Valor por defecto
     return alpha
 
-#Mostar los detalles del modelo
+# Mostar los detalles del modelo
 def show_model_details(model_choice):
     # """Permite mostrar los detalles del modelo seleccionado"""
     if model_choice == "CNN_3C":
@@ -159,3 +161,34 @@ def show_model_details(model_choice):
         st.markdown("Dropout: **0.5**")
     else:
         st.info("Selecciona una arquitectura para ver sus detalles.")
+
+# Variar opciones de  LIME 
+def lime_options():
+    # ''' Función que permite variar opciones de visualización de LIME'''
+    st.sidebar.subheader("Opciones de Explicación LIME")
+    
+    # Opción para alterar hide_rest
+    hide_rest_selected = st.sidebar.checkbox(
+        "Ocultar el resto de la imagen (solo mostrar regiones relevantes)",
+        value=False, # Por defecto, no ocultamos el resto
+        key="hide_rest_lime"
+    )
+
+    hide_color_value = None
+
+    if hide_rest_selected:
+
+        # Opción para cambiar el color de hide_color
+        hide_color_option = st.sidebar.radio(
+            "Color de las áreas ocultas",
+            ["Negro", "Gris", "Blanco"],
+            key="hide_color_lime"
+        )
+
+        hide_color_value = 0 # Valor por defecto (Negro)
+        if hide_color_option == "Gris":
+            hide_color_value = 128
+        elif hide_color_option == "Blanco":
+            hide_color_value = 255
+
+    return hide_rest_selected, hide_color_value

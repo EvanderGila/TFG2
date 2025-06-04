@@ -2,6 +2,8 @@
 
 # Librerías externas
 import streamlit as st
+from PIL import Image
+import numpy as np
 
 # Librerías locales
 from src import gradcam_utils as gcu
@@ -60,6 +62,8 @@ with col_uploader:
         # Guardamos la imagen subida con session_state para que se quede en memoria
         st.session_state["uploaded_image"] = user_uploaded
         st.session_state["user_uploaded_image"] = True  # Imagen subida por el usuario
+        hide_rest_selected = False
+        hide_color_value = 0
         
 # Imágenes de ejemplo
 with col_examples:
@@ -114,7 +118,7 @@ if uploaded_image is not None:
                 st.error(f"#### ⚠️ {prediction} con una confianza del **{confidence:.4f}%**")
 
 #Creamos columnas para mostrar tres imágenes
-col_raw_img, col_gradCam, col_sal = st.columns([1, 1, 1]) # Crea tres columnas con proporciones iguales
+col_raw_img, col_gradCam, col_sal, col_lime = st.columns([1, 1, 1, 1])
 
 # === MAPAS DE CALOR ===
 # Si hay imagen muestra las columnas y su contenido
@@ -165,6 +169,24 @@ if uploaded_image is not None:
             formato_sal = st.selectbox("Formato de descarga Saliencia", ["PNG", "SVG"], key="formato_sal")
             # Exportar (Módulo de visualización)
             vis.export_imagen_pil(saliency_img_resized, "Mapa de Saliencia", formato_sal)
+    
+    # Columna 4: Muestra el mapa LIME
+    with col_lime:
+            # Título
+            st.markdown("<h4 style='text-align: center;'>Explicación LIME:</h4>", unsafe_allow_html=True)
+
+            hide_rest_selected, hide_color_value = vis.lime_options()
+
+            # Generar la explicación LIME
+            with st.spinner('Generando explicación LIME, por favor espera...'):
+                lime_explanation, lime_predicted_class_name = expl.generate_lime_explanation(image, model_choice, ["Fake", "Real"], hide_rest_selected, hide_color_value)
+
+            if lime_explanation is not None:
+                st.image(lime_explanation, caption=f"LIME: regiones influyentes en la clase {lime_predicted_class_name}", use_container_width=True)
+
+                formato_lime = st.selectbox("Formato de descarga LIME", ["PNG", "SVG"], key="formato_lime")
+                vis.export_imagen_pil(Image.fromarray((lime_explanation * 255).astype(np.uint8)), "Mapa LIME", formato_lime)
+
 
 # Divisor de las imágenes y el quesito de probabilidades
 st.divider()
@@ -183,6 +205,7 @@ if uploaded_image is not None:
     # Columna 2: Gráfico tipo quesito de probabilidades/ probabilidades a secas
     with col_graph:
         # Opción para mostrar/ocultar el gráfico
+        st.sidebar.subheader("Opciones de visualización de resultados")
         mostrar_grafico = st.sidebar.checkbox("Mostrar gráfico de distribución de probabilidad", value=False)
 
         # Mostrando el gráfico:

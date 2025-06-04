@@ -2,11 +2,12 @@
 # Librerías externas
 import streamlit as st
 import torch
+
 # Librerías locales
 from src.models import CNN_3C, CNN_4C
 
 # Cargar el modelo 
-@st.cache_resource #Esto permite que solo se vuelva a ejecutar esta función si el parámetro 'model_choice' cambia, de forma que es más eficiente
+@st.cache_resource # Esto permite que solo se vuelva a ejecutar esta función si el parámetro 'model_choice' cambia, de forma que es más eficiente
 def load_model(model_choice):
     # """Carga los pesos del modelo seleccionado"""
     if model_choice == "CNN_3C":
@@ -42,5 +43,3 @@ def predict_image(model, input_tensor):
         probability = None
     
     return probability, output
-
-
