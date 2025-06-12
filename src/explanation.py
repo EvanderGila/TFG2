@@ -111,7 +111,7 @@ def generate_lime_explanation(image, model_choice, class_names=["Fake", "Real"],
             top_labels=1, # Enfocarse en la clase que tiene más probabilidades (En este caso solo hay una)
             hide_color=hide_color_option, # Ocultar píxeles con color seleccionado (0 = negro 255= blanco)
             num_samples=2000, # Número de muestras perturbadas
-            segmentation_fn=segmentation_fn # Función de segmentación definida previamente
+            segmentation_fn=segmentation_fn # Función de segmentación definida previamente (Crea los super píxeles)
         )
 
         # Obtener la etiqueta de la clase predicha para la explicación LIME

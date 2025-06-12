@@ -230,6 +230,16 @@ if uploaded_image is not None:
             
 # === FOOTER ===
 st.markdown("---")
-st.markdown("TFG2")
+st.markdown(
+    """
+    <div style="text-align: center; font-size: 0.9em; color: grey;">
+        Trabajo de Fin de Grado - Universidad Politécnica de Madrid <br>
+        Autor: Evander · Tutoras: Aurea María Anguera de Sojo Hernández & Helena Liz López <br>
+        Proyecto de detección de imágenes generadas por IA (Stable Diffusion)<br>
+        © 2025
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 
