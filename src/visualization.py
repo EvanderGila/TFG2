@@ -1,4 +1,5 @@
 """Este módulo contiene funciones para la visualización de resultados"""
+
 # librerías estándar
 import io
 

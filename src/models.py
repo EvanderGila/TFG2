@@ -1,3 +1,6 @@
+"""Este módulo contiene los modelos de CNN que utiliza la aplicación."""
+
+# Librerias externas
 import torch.nn as nn
 import torch.nn.functional as F
 

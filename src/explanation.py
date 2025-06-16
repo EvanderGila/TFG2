@@ -1,4 +1,5 @@
-"""Este módulo contiene funciones para la generación de mapas de explicación visual (Grad-CAM, Saliencia)"""
+"""Este módulo contiene funciones para la generación de mapas de explicación visual (Grad-CAM, Saliencia, LIME)"""
+
 # Librerias externas
 from torchvision import transforms
 from torchvision.transforms.functional import to_pil_image
@@ -91,26 +92,35 @@ def predict_fn(images, model, preprocess_fn):
 @st.cache_data
 def generate_lime_explanation(image, model_choice, class_names=["Fake", "Real"], hide_rest_option=False, hide_color_option=0):
     # """ Función que genera una imagen con la explicación LIME superpuesta"""
+
     try:
-        #Cargamos el modelo dentro de la función para eficiencia de caché
+        # Cargamos el modelo dentro de la función generate_lime_explanation para eficiencia de caché
         model = load_model(model_choice)
+        # Ponemos el modelo en mode evaluación
+        model.eval() 
+
         # Se crea el explicador LIME para imágenes
         explainer = LimeImageExplainer()
 
-        # Convertir a uint8 si no lo está
-        np_image = np.array(image)
+        width, height = image.size
+        if width != 32 and  height != 32 :
+            img = transforms.Resize((64, 64))(image)
+        else:
+            img = image
+
+        # Convertir a formato uint8 la imagen si no lo está
+        np_image = np.array(img)
         if np_image.dtype != np.uint8:
             np_image = (np_image * 255).astype(np.uint8)
 
-        # Segmentador personalizado,  SLIC (Simple Linear Iterative Clustering) n_segments= número de superpíxeles, compactness= relación entre el color y la proximidad espacial
-        segmentation_fn = lambda x: slic(x, n_segments=100, compactness=20)
-
+        # Segmentador personalizado,  SLIC (Simple Linear Iterative Clustering) n_segments= número de superpíxeles, compactness= relación entre el color y la proximidad espacial, start_label asigna la etiqueta del primer superpixel
+        segmentation_fn = lambda x: slic(x, n_segments=90, compactness=20, start_label=1)
+       
         explanation = explainer.explain_instance(
             np_image, # Imagen
             classifier_fn=lambda x: predict_fn(x, model, preprocess_fn), # Usamos predict_fn para sacar las probabilidades de cada clase para las imágenes de lime
             top_labels=1, # Enfocarse en la clase que tiene más probabilidades (En este caso solo hay una)
-            hide_color=hide_color_option, # Ocultar píxeles con color seleccionado (0 = negro 255= blanco)
-            num_samples=2000, # Número de muestras perturbadas
+            num_samples=600, # Número de muestras perturbadas
             segmentation_fn=segmentation_fn # Función de segmentación definida previamente (Crea los super píxeles)
         )
 
@@ -118,50 +128,101 @@ def generate_lime_explanation(image, model_choice, class_names=["Fake", "Real"],
         predicted_class_idx = int(explanation.top_labels[0])
         # Usar class_names para obtener el nombre de la clase predicha
         predicted_class_name = class_names[predicted_class_idx]
-        
-        temp, mask = explanation.get_image_and_mask(
-            label=predicted_class_idx, # Id de la clase predicha
-            positive_only=False, # Necesitamos ambos para el procesamiento, positivos y negativos
-            hide_rest=hide_rest_option, # Ocultar el resto de la imagen
-            num_features=7, # Número de superpíxeles a mostrar
-            min_weight=0.0 # Umbral de superpíxeles
-        )
 
-        # Si queremos ocultar el fondo
+        # inicializamos las variables de imagen final y máscara de esa imagen
+        final_image_to_display = None
+        final_mask_for_boundaries = None
+
+        # Obtener los superpíxeles relevantes y sus pesos (los 7 más importantes)
+        top_features = explanation.local_exp[predicted_class_idx][:7]
+        # Crear una máscara booleana de TODOS los superpíxeles que LIME considera relevantes (positivos o negativos)
+        all_relevant_segments_mask = np.zeros(explanation.segments.shape, dtype=bool)
+        for superpixel_id, _ in top_features:
+            all_relevant_segments_mask[explanation.segments == superpixel_id] = True
+
+        # Crear una máscara de enteros para mark_boundaries.
+        initial_mask_for_boundaries = np.zeros(explanation.segments.shape, dtype=int)
+        for superpixel_id, weight in top_features:
+            segment_pixels = (explanation.segments == superpixel_id)
+            if weight > 0:
+                initial_mask_for_boundaries[segment_pixels] = 1 # Positivo (borde verde)
+            else: # weight <= 0
+                initial_mask_for_boundaries[segment_pixels] = -1 # Negativo (borde rojo)
+
         if hide_rest_option:
-            # Creamos un fondo solido obteniendo las dimensiones de 'temp', eligiendo el color de 'hide_color_option' y dejando los valores en el rango 0-255 (uint8)
-            colored_background = np.full(temp.shape, hide_color_option, dtype=np.uint8)
-            # Identificación de los superpíxeles relevantes
-            relevant_segments_indices = explanation.segments[mask != 0] # Cogemos del array explanation.segments los pesos del array mask que sean distintos a 0 (relevantes)
-            relevance_mask = np.zeros(explanation.segments.shape, dtype=bool) # Obtenemos las dimensiones de explanation.segments y lo inicializa a 0 (False)
-            for seg_idx in relevant_segments_indices:
-                relevance_mask[explanation.segments == seg_idx] = True # Pone a True todos los píxeles que sean relevantes (pesos distintos a 0, positivos o negativos)
-            # Combinación del fondo con las partes relevantes
-            final_img_for_boundaries = np.where(relevance_mask[:,:,None], np_image, colored_background) # Si el pixel es True, se coge  el valor de np_image, si no, se coge el de colored_background
-            temp = final_img_for_boundaries
+            # Viusalizar la  imagen oculta  con los superpíxeles relevantes super puestos
 
-        # Si es una predicción "Fake", manipulamos la 'temp' para quitar el color verde
-        if predicted_class_name == "Fake":
-            # Identificamos los píxeles de los superpíxeles con peso positivo (verdes)
-            positive_segments_mask = np.zeros(explanation.segments.shape, dtype=bool)
-            for seg_id, weight in explanation.local_exp[predicted_class_idx]:
-                if weight > 0:
-                    positive_segments_mask[explanation.segments == seg_id] = True
+            # Creamos el fondo
+            colored_background = np.full(np_image.shape, hide_color_option, dtype=np.uint8)
+            final_image_to_display = np.copy(colored_background)
 
-            # Sobre la imagen 'temp', donde hay un segmento positivo, lo reemplazamos con la imagen original (o con el hide_color si hide_rest_option es True)
-            if hide_rest_option: # Si estamos ocultando el resto, revertimos a hide_color_option
-                temp = np.where(positive_segments_mask[:, :, None], colored_background, temp)
-            else: # Si no estamos ocultando el resto, revertimos a la imagen original
-                temp = np.where(positive_segments_mask[:, :, None], np_image, temp)
+            # Identificar superpíxeles que realmente queremos mostrar
+            segments_to_show_original = np.zeros(explanation.segments.shape, dtype=bool)
+            
+            if predicted_class_name == "Fake":
+                # Si es fake, solo mostrar los superpíxeles que contribuyen negativamente (rojos) para no mostar los que contribuyen a la clase real (verdes)
+                for superpixel_id, weight in top_features:
+                    if weight <= 0: # Solo si contribuyen negativamente 
+                        segments_to_show_original[explanation.segments == superpixel_id] = True
+            else:
+                # Si es real, mostrar todos los superpíxeles relevantes que contribuyen positivamente (verdes)
+                for superpixel_id, weight in top_features:
+                    if weight >= 0: # Solo si contribuyen positivamente 
+                        segments_to_show_original[explanation.segments == superpixel_id] = True
 
-        # Solo modificamos la máscara de bordes si la clase predicha es "Fake"
-        if predicted_class_name == "Fake":
-            mask_for_boundaries = np.copy(mask)
-            mask_for_boundaries[mask_for_boundaries > 0] = 0 # Quita los bordes verdes
+            # Mostrar en la imagen original solo los  superpíxeles relevantes para la clase objetivo
+            final_image_to_display[segments_to_show_original] = np_image[segments_to_show_original]
+            # Rodear solo los superpíxeles relevantes para la calse objetivo
+            final_mask_for_boundaries = np.copy(initial_mask_for_boundaries)
+
+
         else:
-            mask_for_boundaries = mask
+            # Visualizar la imagen original con los superpíxeles superpuestos
+            temp_lime_colored, mask_lime_output = explanation.get_image_and_mask(
+                label=predicted_class_idx, # Id de la clase predicha
+                positive_only=False, # Necesitamos ambos para el procesamiento, positivos y negativos
+                hide_rest=False, # Ocultar el resto de la imagen (falso)
+                num_features=7, # Número de superpíxeles a mostrar
+                min_weight=0.0 # Umbral de superpíxeles
+            )
 
-        return mark_boundaries(temp / 255.0, mask_for_boundaries), predicted_class_name
+            if predicted_class_name == "Fake":
+                # Si es Fake, quitamos el coloreado de los superpíxeles que contribuyen a 'Real' (positivos)
+                for superpixel_id, weight in top_features:
+                    if weight > 0: # Este superpíxel contribuye a la clase 'Real'
+                        segment_pixels = (explanation.segments == superpixel_id)
+                        # Reemplazamos los píxeles coloreados de este superpíxel con la imagen original
+                        temp_lime_colored[segment_pixels] = np_image[segment_pixels]
+                        # También los ponemos a 0 en la máscara para mark_boundaries para que no tengan borde
+                        mask_lime_output[segment_pixels] = 0
+            else:
+                # Si es Real, quitamos el coloreado de los superpíxeles que contribuyen a 'Fake' (negativos)
+                for superpixel_id, weight in top_features:
+                    if weight < 0: # Este superpíxel contribuye a la clase 'Fake'
+                        segment_pixels = (explanation.segments == superpixel_id)
+                        # Reemplazamos los píxeles coloreados de este superpíxel con la imagen original
+                        temp_lime_colored[segment_pixels] = np_image[segment_pixels]
+                        # También los ponemos a 0 en la máscara para mark_boundaries para que no tengan borde
+                        mask_lime_output[segment_pixels] = 0
+
+
+            # Establecemos la imagen final y la máscara de bordes
+            final_image_to_display = temp_lime_colored
+            final_mask_for_boundaries = mask_lime_output
+
+
+        # Quitamos los bordes de la clase opuesta
+        if predicted_class_name == "Fake":
+            # Eliminar los bordes de la clase real
+            final_mask_for_boundaries[final_mask_for_boundaries == 1] = 0
+        else:
+            # Eliminar los bordes de la clase fake
+            final_mask_for_boundaries[final_mask_for_boundaries == -1] = 0
+
+        # Normalizar la imagen final a [0, 1] y asegurar el dtype float32 para mark_boundaries
+        final_image_to_display_normalized = final_image_to_display.astype(np.float32) / 255.0
+
+        return mark_boundaries(final_image_to_display_normalized, final_mask_for_boundaries), predicted_class_name
 
     except Exception as e:
         st.error(f"Error al generar la explicación LIME: {e}")

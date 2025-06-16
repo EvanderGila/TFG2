@@ -38,11 +38,14 @@ st.divider()
 
 # === CARGA DEL MODELO ===
 model = ml.load_model(model_choice)
+#model.eval()
 # Detener la ejecución si el modelo no se carga
 if model is None:
     st.stop() 
 
 # === INICIALIZACIÓN Grad-CAM torchcam ===
+# Limpiar hooks 
+gcu.clear_gradcam_hooks(model)
 cam_torchcam = gcu.initialize_gradcam(model, model_choice)
 
 # === CARGA DE LA IMAGEN ===
@@ -130,6 +133,11 @@ if uploaded_image is not None:
         st.markdown("<h4 style='text-align: center;'>Imagen original:</h4>", unsafe_allow_html=True)
         #Mostar la imagen
         st.image(image, caption="Imagen subida", use_container_width=True)
+        # Mostrar botón de descarga
+        formato_img = st.selectbox("Formato de descarga imagen", ["PNG", "SVG"], key="formato_img")
+            
+        # Exportar (Módulo de visualización)
+        vis.export_imagen_pil(image, "Imagen Original", formato_img)
     
     # Columa 2: Muestra el mapa de calor Grad-CAM
     with col_gradCam:

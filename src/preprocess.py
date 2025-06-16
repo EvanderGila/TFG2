@@ -1,4 +1,5 @@
 """Este módulo contiene funciones para abrir y preprocesar las imágenes."""
+
 from PIL import Image
 from torchvision import transforms
 import streamlit as st
