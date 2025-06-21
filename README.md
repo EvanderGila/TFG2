@@ -4,6 +4,8 @@
 
 #### { La URL para lanzar la aplicación en Streamlit Cloud es: https://fakeimagedetectortfg.streamlit.app/ }
 
+###  *Abstract/resumen:*
+
 En los últimos años, se ha experimentado un auge exponencial de modelos de generación de imágenes, las cuales son a su vez cada vez más realistas, favoreciendo la equivocación de los usuarios y por tanto, creando un creciente ecosistema de desinformación. Por otra parte, las herramientas de detección y discriminación de este contenido es escaso y no está estandarizado para el público general. Todo esto genera una disparidad entre el avance de estos dos campos. Ante este contexto, el presente trabajo tiene como objetivo principal el desarrollo de una herramienta sencilla y práctica que permita luchar contra la incertidumbre que estas imágenes generan, utilizando modelos de inteligencia artificial que permitan discernir cuáles de estas están generadas sintéticamente, aplicando técnicas de explicación de los resultados obtenidos con el fin de entenderlos. Además, esta herramienta estará orientada a actualizarse de una forma sencilla que permita seguir el ritmo a los nuevos modelos generativos.
 
 ### *Dataset*
