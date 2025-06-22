@@ -6,6 +6,7 @@ import io
 # Librerías externas
 import streamlit as st
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 
 # === VISUALIZACIÓN ===
@@ -35,7 +36,7 @@ def display_probability_chart(probability: float):
     # Explode automático si una parte es pequeña (<10%) -- Es decir, siempre
     explode = [0.1 if s < 0.1 else 0 for s in sizes]
 
-    wedges, texts, autotexts = ax.pie(sizes, labels=labels, autopct='%1.4f%%', startangle=90, colors=colors, explode=explode, textprops={'color': 'white', 'weight': 'bold', 'fontsize': 11})
+    wedges, texts, autotexts = ax.pie(sizes, labels=labels, autopct='%1.2f%%', startangle=90, colors=colors, explode=explode, textprops={'color': 'white', 'weight': 'bold', 'fontsize': 11})
     ax.axis('equal')  # Para que sea un círculo
 
     # Mostrar gráfico y caption
@@ -44,32 +45,71 @@ def display_probability_chart(probability: float):
 
     return fig
 
+def display_probability_bar(probability: float):
+    """
+    Muestra una barra de porcentaje horizontal con relleno verde para 'Real'
+    y rojo para 'Fake', indicando los porcentajes en cada lado.
+    """
+    # Crear la figura y los ejes
+    fig, ax = plt.subplots(figsize=(8, 1), facecolor='#1e1e1e') # Barra horizontal, fondo oscuro
+    ax.set_xlim(0, 100) # El eje X va de 0 a 100 para los porcentajes
+    ax.set_ylim(0, 1)   # El eje Y es pequeño, ya que es una barra horizontal
+    ax.axis('off')      # Ocultar los ejes
+
+    # Calcular porcentajes
+    real_percentage = probability * 100
+    fake_percentage = (1 - probability) * 100
+
+    # Dibujar la barra "Real" (verde)
+    real_bar = patches.Rectangle((0, 0.25), real_percentage, 0.5, facecolor='#00cc66')
+    ax.add_patch(real_bar)
+
+    # Dibujar la barra "Fake" (roja)
+    fake_bar = patches.Rectangle((real_percentage, 0.25), fake_percentage, 0.5, facecolor='#cc3333')
+    ax.add_patch(fake_bar)
+
+    # Añadir el porcentaje de "Real" a la izquierda
+    ax.text(0, 0.8, f"{real_percentage:.2f}% (Real)", color='#00cc66',
+            ha='left', va='bottom', fontsize=12, weight='heavy')
+
+    # Añadir el porcentaje de "Fake" a la derecha
+    ax.text(100, 0.8, f"{fake_percentage:.2f}% (Fake)", color='#cc3333',
+            ha='right', va='bottom', fontsize=12, weight='heavy')
+
+    # Mostrar la figura en Streamlit
+    st.pyplot(fig)
+    st.caption("Distribución visual de la probabilidad predicha por el modelo")
+
+    return fig
+
+
 # Mostrar texto con probabilidades extendido (No mostrar gráfico)
 def display_probability_text_extended(probability: float):
     # """Muestra el texto con las probabilidades de real y fake cuando no está activo el gráfico"""
     # Imagen real
     if probability >= 0.5 :
         st.markdown("Al seleccionar *\"Mostrar gráfico de distribución de probabilidad\"* en la barra lateral izquierda se creará un gráfico de probabilidad circular que expondrá en su parte superior la probabilidad de la clase *\"Fake\"* en la parte superior y la clase *\"Real\"* en su parte inferior")
-        st.error(f"###### La probabilidad de que esta imagen sea generada sintéticamente ***(Fake)*** es del: ***{((1-probability)*100):.4f}%***")
-        st.success(f"###### La probabilidad de que esta imagen sea real ***(Real)*** es del: ***{(probability*100):.4f}%***")  
+        st.error(f"###### La probabilidad de que esta imagen sea generada sintéticamente ***(Fake)*** es del: ***{((1-probability)*100):.2f}%***")
+        st.success(f"###### La probabilidad de que esta imagen sea real ***(Real)*** es del: ***{(probability*100):.2f}%***")  
+
     # Imagen falsa
     else:
         st.markdown("Al seleccionar *\"Mostrar gráfico de distribución de probabilidad\"* en la barra lateral izquierda se creará un gráfico de probabilidad circular que expondrá en su parte superior la probabilidad de la clase *\"Real\"* en la parte superior y la clase *\"Fake\"* en su parte inferior") 
         st.success(f"###### La **probabilidad** de que esta imagen sea real ***(Real)*** es del: ***{(probability*100):.4f}%***")
-        st.error(f"###### La **probabilidad** de que esta imagen sea generada sintéticamente ***(Fake)*** es del: ***{((1-probability)*100):.4f}%***")
+        st.error(f"###### La **probabilidad** de que esta imagen sea generada sintéticamente ***(Fake)*** es del: ***{((1-probability)*100):.2f}%***")
 
 
 def display_probability_text(probability: float):
     # """Muestra el texto con las probabilidades de real y fake cuando está activo el gráfico"""
     # Mostrar orden de imagen real (Fake-Real):
     if probability >= 0.5 :
-        st.error(f"###### La probabilidad de que esta imagen sea generada sintéticamente ***(Fake)*** es del: ***{((1-probability)*100):.4f}%***")
-        st.success(f"###### La probabilidad de que esta imagen sea real ***(Real)*** es del: ***{(probability*100):.4f}%***")  
+        st.error(f"###### La probabilidad de que esta imagen sea generada sintéticamente ***(Fake)*** es del: ***{((1-probability)*100):.2f}%***")
+        st.success(f"###### La probabilidad de que esta imagen sea real ***(Real)*** es del: ***{(probability*100):.2f}%***")  
             
     # Mostar orden de imagen falsa (Real-Fake):
     else:    
-        st.success(f"###### La **probabilidad** de que esta imagen sea real ***(Real)*** es del: ***{(probability*100):.4f}%***")
-        st.error(f"###### La **probabilidad** de que esta imagen sea generada sintéticamente ***(Fake)*** es del: ***{((1-probability)*100):.4f}%***")
+        st.success(f"###### La **probabilidad** de que esta imagen sea real ***(Real)*** es del: ***{(probability*100):.2f}%***")
+        st.error(f"###### La **probabilidad** de que esta imagen sea generada sintéticamente ***(Fake)*** es del: ***{((1-probability)*100):.2f}%***")
 
 # === DESCARGAS ===
 

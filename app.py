@@ -109,6 +109,8 @@ if uploaded_image is not None:
         if input_tensor is not None:
             # Obtención de probabilidades y salidas mediante el módulo model_loading
             probability, output = ml.predict_image(model, input_tensor)
+            # Redondeamos a dos decimales esa probabilidad
+            probability = round(probability, 4)
 
             # Conseguir los valores de 'prediction' y 'confidence' del módulo de visualización
             prediction, confidence = vis.display_prediction(probability)
@@ -116,9 +118,9 @@ if uploaded_image is not None:
             # Mostar resultado inicial del modelo (prediction y confidence)
             st.markdown("### Resultado:")
             if probability >= 0.5:
-                st.success(f"#### ✅ {prediction} con una confianza del **{confidence:.4f}%**")
+                st.success(f"#### ✅ {prediction} con una confianza del **{confidence:.2f}%**")
             else:
-                st.error(f"#### ⚠️ {prediction} con una confianza del **{confidence:.4f}%**")
+                st.error(f"#### ⚠️ {prediction} con una confianza del **{confidence:.2f}%**")
 
 #Creamos columnas para mostrar tres imágenes
 col_raw_img, col_gradCam, col_sal, col_lime = st.columns([1, 1, 1, 1])
@@ -224,6 +226,9 @@ if uploaded_image is not None:
         else:
             # Mostar probabilidad extendida (Módulo visualización)
             vis.display_probability_text_extended(probability)
+            fig_bar = vis.display_probability_bar(probability)
+            vis.export_graph(fig_bar)
+            
 
     # Columna 6: Mostar estadísticas y descarga del gráfico
     with col_sta_dow:
