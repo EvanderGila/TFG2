@@ -1,4 +1,4 @@
-# ***(((CAMBIAR POR EL TÍTULO DEL PROYECTO!!!)))***
+# ***Diseño e Implementación de una aplicación para la Identificación de imágenes generadas Artificialmente basada en Interpretabilidad***
 
 ## *Evander Gila Reques, TFG de Ing. de Tecnologías para la Sociedad de la Información*
 
