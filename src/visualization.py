@@ -95,7 +95,7 @@ def display_probability_text_extended(probability: float):
     # Imagen falsa
     else:
         st.markdown("Al seleccionar *\"Mostrar gráfico de distribución de probabilidad\"* en la barra lateral izquierda se creará un gráfico de probabilidad circular que expondrá en su parte superior la probabilidad de la clase *\"Real\"* en la parte superior y la clase *\"Fake\"* en su parte inferior") 
-        st.success(f"###### La **probabilidad** de que esta imagen sea real ***(Real)*** es del: ***{(probability*100):.4f}%***")
+        st.success(f"###### La **probabilidad** de que esta imagen sea real ***(Real)*** es del: ***{(probability*100):.2f}%***")
         st.error(f"###### La **probabilidad** de que esta imagen sea generada sintéticamente ***(Fake)*** es del: ***{((1-probability)*100):.2f}%***")
 
 
@@ -147,9 +147,9 @@ def export_imagen_pil(imagen_pil, nombre_archivo, formato):
     # Cerramos el buffer
     buffer.close()
 
-# Exportar el gráfico de quesito
+# Exportar el gráfico de quesito o gráfico de barra
 def export_graph(fig):
-    # """Permite la exportación del gráfico de quesito"""
+    # """Permite la exportación del gráfico de barra"""
 
     # Selector de formato de exportación mediante un selectbox
     formato_exportacion = st.selectbox("Formato de exportación del gráfico", ["PNG", "SVG"])
